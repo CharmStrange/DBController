@@ -13,3 +13,9 @@
 #include <malloc.h>
 #include <memory.h>
 #include <tchar.h>
+#include <iostream>
+#include <string>
+#include <vector>
+#include <unordered_map>
+#include <cstdlib>
+#include <ctime>

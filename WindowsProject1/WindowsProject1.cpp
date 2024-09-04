@@ -1,7 +1,4 @@
-﻿// WindowsProject1.cpp : 애플리케이션에 대한 진입점을 정의합니다.
-//
-
-#include "framework.h"
+﻿#include "framework.h"
 #include "WindowsProject1.h"
 
 #define MAX_LOADSTRING 100
@@ -17,15 +14,106 @@ BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 
+// 데이터 구조체 정의
+struct Data {
+    std::string header_info;
+    std::string actual_data;
+    std::string dummy_data; // 필요에 따라 사용될 수 있는 더미 데이터
+};
+
+class DataGenerator {
+public:
+    DataGenerator() {
+        // 시드 초기화
+        srand((unsigned int)time(nullptr));
+    }
+
+    Data generateData() {
+        Data newData;
+        newData.header_info = generateHeaderInfo();
+        newData.actual_data = generateActualData();
+
+        // 랜덤으로 더미 데이터를 생성할지 결정
+        if (rand() % 2) {
+            newData.dummy_data = generateDummyData();
+        }
+        else {
+            newData.dummy_data = "";
+        }
+
+        return newData;
+    }
+
+private:
+    std::string generateHeaderInfo() {
+        // 간단한 예로 헤더 정보를 생성
+        return "Header_" + std::to_string(rand() % 1000);
+    }
+
+    std::string generateActualData() {
+        // 간단한 예로 실제 데이터를 생성
+        return "Data_" + std::to_string(rand() % 10000);
+    }
+
+    std::string generateDummyData() {
+        // 간단한 예로 더미 데이터를 생성
+        return "Dummy_" + std::to_string(std::rand() % 10000);
+    }
+};
+
+class DataClassifier {
+public:
+    // 파이프라인을 설정
+    void addPipeline(const std::string& header, const std::string& pipeline) {
+        pipelines[header] = pipeline;
+    }
+
+    // 데이터 분류
+    std::string classify(const Data& data) {
+        if (pipelines.find(data.header_info) != pipelines.end()) {
+            return pipelines[data.header_info];
+        }
+        else {
+            return "default_pipeline";
+        }
+    }
+
+private:
+    std::unordered_map<std::string, std::string> pipelines;
+};
+
+class DataWarehouse {
+public:
+    void storeData(const std::string& pipeline, const Data& data) {
+        warehouse[pipeline].push_back(data);
+    }
+
+    std::string displayWarehouse() const {
+        std::string result;
+        for (const auto& entry : warehouse) {
+            result += "\nPipeline: " + entry.first + "\n";
+            for (const auto& data : entry.second) {
+                result += "  Header: " + data.header_info + ", Data: " + data.actual_data;
+                if (!data.dummy_data.empty()) {
+                    result += ", Dummy: " + data.dummy_data;
+                }
+                result += "\n";
+            }
+        }
+        return result;
+    }
+
+private:
+    std::unordered_map<std::string, std::vector<Data>> warehouse;
+};
+
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
-                     _In_opt_ HINSTANCE hPrevInstance,
-                     _In_ LPWSTR    lpCmdLine,
-                     _In_ int       nCmdShow)
+    _In_opt_ HINSTANCE hPrevInstance,
+    _In_ LPWSTR    lpCmdLine,
+    _In_ int       nCmdShow)
 {
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
-
-    // TODO: 여기에 코드를 입력합니다.
 
     // 전역 문자열을 초기화합니다.
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
@@ -33,7 +121,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     MyRegisterClass(hInstance);
 
     // 애플리케이션 초기화를 수행합니다:
-    if (!InitInstance (hInstance, nCmdShow))
+    if (!InitInstance(hInstance, nCmdShow))
     {
         return FALSE;
     }
@@ -52,104 +140,113 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         }
     }
 
-    return (int) msg.wParam;
+    return (int)msg.wParam;
 }
 
-
-
-//
-//  함수: MyRegisterClass()
-//
-//  용도: 창 클래스를 등록합니다.
-//
 ATOM MyRegisterClass(HINSTANCE hInstance)
 {
     WNDCLASSEXW wcex;
 
     wcex.cbSize = sizeof(WNDCLASSEX);
 
-    wcex.style          = CS_HREDRAW | CS_VREDRAW;
-    wcex.lpfnWndProc    = WndProc;
-    wcex.cbClsExtra     = 0;
-    wcex.cbWndExtra     = 0;
-    wcex.hInstance      = hInstance;
-    wcex.hIcon          = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_WINDOWSPROJECT1));
-    wcex.hCursor        = LoadCursor(nullptr, IDC_ARROW);
-    wcex.hbrBackground  = (HBRUSH)(COLOR_WINDOW+1);
-    wcex.lpszMenuName   = MAKEINTRESOURCEW(IDC_WINDOWSPROJECT1);
-    wcex.lpszClassName  = szWindowClass;
-    wcex.hIconSm        = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
+    wcex.style = CS_HREDRAW | CS_VREDRAW;
+    wcex.lpfnWndProc = WndProc;
+    wcex.cbClsExtra = 0;
+    wcex.cbWndExtra = 0;
+    wcex.hInstance = hInstance;
+    wcex.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_WINDOWSPROJECT1));
+    wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
+    wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+    wcex.lpszMenuName = MAKEINTRESOURCEW(IDC_WINDOWSPROJECT1);
+    wcex.lpszClassName = szWindowClass;
+    wcex.hIconSm = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
 
     return RegisterClassExW(&wcex);
 }
 
-//
-//   함수: InitInstance(HINSTANCE, int)
-//
-//   용도: 인스턴스 핸들을 저장하고 주 창을 만듭니다.
-//
-//   주석:
-//
-//        이 함수를 통해 인스턴스 핸들을 전역 변수에 저장하고
-//        주 프로그램 창을 만든 다음 표시합니다.
-//
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
-   hInst = hInstance; // 인스턴스 핸들을 전역 변수에 저장합니다.
+    hInst = hInstance; // 인스턴스 핸들을 전역 변수에 저장합니다.
 
-   HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
-      CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
+    HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
+        CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
 
-   if (!hWnd)
-   {
-      return FALSE;
-   }
+    if (!hWnd)
+    {
+        return FALSE;
+    }
 
-   ShowWindow(hWnd, nCmdShow);
-   UpdateWindow(hWnd);
+    ShowWindow(hWnd, nCmdShow);
+    UpdateWindow(hWnd);
 
-   return TRUE;
+    return TRUE;
 }
 
-//
-//  함수: WndProc(HWND, UINT, WPARAM, LPARAM)
-//
-//  용도: 주 창의 메시지를 처리합니다.
-//
-//  WM_COMMAND  - 애플리케이션 메뉴를 처리합니다.
-//  WM_PAINT    - 주 창을 그립니다.
-//  WM_DESTROY  - 종료 메시지를 게시하고 반환합니다.
-//
-//
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+    static std::string warehouseData;
+
     switch (message)
     {
     case WM_COMMAND:
+    {
+        int wmId = LOWORD(wParam);
+        switch (wmId)
         {
-            int wmId = LOWORD(wParam);
-            // 메뉴 선택을 구문 분석합니다:
-            switch (wmId)
-            {
-            case IDM_ABOUT:
-                DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
-                break;
-            case IDM_EXIT:
-                DestroyWindow(hWnd);
-                break;
-            default:
-                return DefWindowProc(hWnd, message, wParam, lParam);
-            }
+        case IDM_ABOUT:
+            DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
+            break;
+        case IDM_EXIT:
+            DestroyWindow(hWnd);
+            break;
+        default:
+            return DefWindowProc(hWnd, message, wParam, lParam);
         }
-        break;
+    }
+    break;
     case WM_PAINT:
-        {
-            PAINTSTRUCT ps;
-            HDC hdc = BeginPaint(hWnd, &ps);
-            // TODO: 여기에 hdc를 사용하는 그리기 코드를 추가합니다...
-            EndPaint(hWnd, &ps);
+    {
+        PAINTSTRUCT ps;
+        HDC hdc = BeginPaint(hWnd, &ps);
+
+        // 데이터 생성, 분류 및 저장
+        DataGenerator generator;
+        DataClassifier classifier;
+        DataWarehouse warehouse;
+
+        // 파이프라인 설정
+        classifier.addPipeline("Header_1", "pipeline_1");
+        classifier.addPipeline("Header_2", "pipeline_2");
+        classifier.addPipeline("Header_3", "pipeline_3");
+
+        // 예제: 10개의 데이터를 생성, 분류 및 저장
+        for (int i = 0; i < 10; ++i) {
+            Data data = generator.generateData();
+            std::string pipeline = classifier.classify(data);
+            warehouse.storeData(pipeline, data);
         }
-        break;
+
+        // 저장된 데이터 출력
+        warehouseData = warehouse.displayWarehouse();
+
+        // 줄바꿈 처리를 위한 코드를 추가
+        int y = 5;  // 시작 y 좌표
+        size_t pos = 0;
+        std::string line;
+        while ((pos = warehouseData.find('\n')) != std::string::npos) {
+            line = warehouseData.substr(0, pos);
+            TextOutA(hdc, 5, y, line.c_str(), (int)line.length());
+            warehouseData.erase(0, pos + 1);
+            y += 20;  // 다음 줄로 이동 (줄 간격)
+        }
+        // 마지막 라인 처리
+        if (!warehouseData.empty()) {
+            TextOutA(hdc, 5, y, warehouseData.c_str(), (int)warehouseData.length());
+        }
+
+        EndPaint(hWnd, &ps);
+    }
+    break;
     case WM_DESTROY:
         PostQuitMessage(0);
         break;
@@ -159,7 +256,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     return 0;
 }
 
-// 정보 대화 상자의 메시지 처리기입니다.
 INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
     UNREFERENCED_PARAMETER(lParam);
