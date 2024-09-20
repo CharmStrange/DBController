@@ -1,20 +1,29 @@
 ﻿#include "framework.h"
-#include "WindowsProject1.h"
+#include "resource.h"
+#include <fstream>
+#include <sstream>
 
 #define MAX_LOADSTRING 100
+#define IDC_OUTPUT_BOX 101 // Edit control ID
+#define IDC_RUN_BUTTON 102 // Run simulation button ID
+#define IDC_SAVE_BUTTON 103 // Save to file button ID
 
 // 전역 변수:
-HINSTANCE hInst;                                // 현재 인스턴스입니다.
-WCHAR szTitle[MAX_LOADSTRING];                  // 제목 표시줄 텍스트입니다.
-WCHAR szWindowClass[MAX_LOADSTRING];            // 기본 창 클래스 이름입니다.
+HINSTANCE hInst;
+WCHAR szTitle[MAX_LOADSTRING];
+WCHAR szWindowClass[MAX_LOADSTRING];
+HWND hOutputBox; // Edit control 핸들
 
-// 이 코드 모듈에 포함된 함수의 선언을 전달합니다:
-ATOM                MyRegisterClass(HINSTANCE hInstance);
-BOOL                InitInstance(HINSTANCE, int);
-LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
-INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
+// 함수 선언:
+ATOM MyRegisterClass(HINSTANCE hInstance);
+BOOL InitInstance(HINSTANCE, int);
+LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
+INT_PTR CALLBACK About(HWND, UINT, WPARAM, LPARAM);
 
-// 데이터 구조체 정의
+// 데이터를 저장할 전역 변수
+std::string warehouseData;
+
+// 데이터 생성, 분류, 저장 클래스 정의 (이전과 동일)
 struct Data {
     std::string header_info;
     std::string actual_data;
@@ -24,8 +33,7 @@ struct Data {
 class DataGenerator {
 public:
     DataGenerator() {
-        // 시드 초기화
-        srand((unsigned int)time(nullptr));
+        srand((unsigned int)time(nullptr)); // 시드 초기화
     }
 
     Data generateData() {
@@ -33,42 +41,35 @@ public:
         newData.header_info = generateHeaderInfo();
         newData.actual_data = generateActualData();
 
-        // 랜덤으로 더미 데이터를 생성할지 결정
         if (rand() % 2) {
             newData.dummy_data = generateDummyData();
         }
         else {
             newData.dummy_data = "";
         }
-
         return newData;
     }
 
 private:
     std::string generateHeaderInfo() {
-        // 간단한 예로 헤더 정보를 생성
         return "Header_" + std::to_string(rand() % 1000);
     }
 
     std::string generateActualData() {
-        // 간단한 예로 실제 데이터를 생성
         return "Data_" + std::to_string(rand() % 10000);
     }
 
     std::string generateDummyData() {
-        // 간단한 예로 더미 데이터를 생성
-        return "Dummy_" + std::to_string(std::rand() % 10000);
+        return "Dummy_" + std::to_string(rand() % 10000);
     }
 };
 
 class DataClassifier {
 public:
-    // 파이프라인을 설정
     void addPipeline(const std::string& header, const std::string& pipeline) {
         pipelines[header] = pipeline;
     }
 
-    // 데이터 분류
     std::string classify(const Data& data) {
         if (pipelines.find(data.header_info) != pipelines.end()) {
             return pipelines[data.header_info];
@@ -107,6 +108,60 @@ private:
     std::unordered_map<std::string, std::vector<Data>> warehouse;
 };
 
+// GUI 요소 생성
+void CreateSimulationControls(HWND hWnd) {
+    // 결과 출력 박스 (Edit Control)
+    hOutputBox = CreateWindowEx(WS_EX_CLIENTEDGE, TEXT("EDIT"), TEXT(""),
+        WS_CHILD | WS_VISIBLE | WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY,
+        10, 10, 400, 300, hWnd, (HMENU)IDC_OUTPUT_BOX, hInst, NULL);
+
+    // Run Simulation 버튼
+    CreateWindow(TEXT("button"), TEXT("Run Simulation"),
+        WS_VISIBLE | WS_CHILD,
+        420, 10, 150, 30,
+        hWnd, (HMENU)IDC_RUN_BUTTON, hInst, NULL);
+
+    // Save to File 버튼
+    CreateWindow(TEXT("button"), TEXT("Save to File"),
+        WS_VISIBLE | WS_CHILD,
+        420, 50, 150, 30,
+        hWnd, (HMENU)IDC_SAVE_BUTTON, hInst, NULL);
+}
+
+// 시뮬레이션 실행 함수
+void RunSimulation() {
+    DataGenerator generator;
+    DataClassifier classifier;
+    DataWarehouse warehouse;
+
+    // 파이프라인 설정
+    classifier.addPipeline("Header_1", "pipeline_1");
+    classifier.addPipeline("Header_2", "pipeline_2");
+    classifier.addPipeline("Header_3", "pipeline_3");
+
+    // 예제: 10개의 데이터를 생성, 분류 및 저장
+    for (int i = 0; i < 10; ++i) {
+        Data data = generator.generateData();
+        std::string pipeline = classifier.classify(data);
+        warehouse.storeData(pipeline, data);
+    }
+
+    // 저장된 데이터 출력
+    warehouseData = warehouse.displayWarehouse();
+
+    // Edit Control에 데이터 출력
+    std::wstring ws(warehouseData.begin(), warehouseData.end());
+    SetWindowText(hOutputBox, ws.c_str());
+}
+
+// 데이터를 파일로 저장하는 함수
+void SaveToFile() {
+    std::ofstream outfile("simulation_output.txt");
+    outfile << warehouseData;
+    outfile.close();
+    MessageBox(NULL, TEXT("Data saved to simulation_output.txt"), TEXT("Save Successful"), MB_OK);
+}
+
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     _In_opt_ HINSTANCE hPrevInstance,
     _In_ LPWSTR    lpCmdLine,
@@ -115,14 +170,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
 
-    // 전역 문자열을 초기화합니다.
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
     LoadStringW(hInstance, IDC_WINDOWSPROJECT1, szWindowClass, MAX_LOADSTRING);
     MyRegisterClass(hInstance);
 
-    // 애플리케이션 초기화를 수행합니다:
-    if (!InitInstance(hInstance, nCmdShow))
-    {
+    if (!InitInstance(hInstance, nCmdShow)) {
         return FALSE;
     }
 
@@ -131,10 +183,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     MSG msg;
 
     // 기본 메시지 루프입니다:
-    while (GetMessage(&msg, nullptr, 0, 0))
-    {
-        if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
-        {
+    while (GetMessage(&msg, nullptr, 0, 0)) {
+        if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg)) {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
@@ -146,9 +196,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 ATOM MyRegisterClass(HINSTANCE hInstance)
 {
     WNDCLASSEXW wcex;
-
     wcex.cbSize = sizeof(WNDCLASSEX);
-
     wcex.style = CS_HREDRAW | CS_VREDRAW;
     wcex.lpfnWndProc = WndProc;
     wcex.cbClsExtra = 0;
@@ -166,40 +214,37 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
 
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
-    hInst = hInstance; // 인스턴스 핸들을 전역 변수에 저장합니다.
+    hInst = hInstance;
 
     HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
 
-    if (!hWnd)
-    {
+    if (!hWnd) {
         return FALSE;
     }
 
     ShowWindow(hWnd, nCmdShow);
     UpdateWindow(hWnd);
 
+    // GUI 요소 생성
+    CreateSimulationControls(hWnd);
+
     return TRUE;
 }
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    static std::string warehouseData;
-
-    switch (message)
-    {
+    switch (message) {
     case WM_COMMAND:
     {
         int wmId = LOWORD(wParam);
-        switch (wmId)
-        {
-        case IDM_ABOUT:
-            DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
-            break;
-        case IDM_EXIT:
-            DestroyWindow(hWnd);
-            break;
-        default:
+        if (wmId == IDC_RUN_BUTTON) {
+            RunSimulation(); // 시뮬레이션 실행
+        }
+        else if (wmId == IDC_SAVE_BUTTON) {
+            SaveToFile(); // 파일로 저장
+        }
+        else {
             return DefWindowProc(hWnd, message, wParam, lParam);
         }
     }
@@ -208,42 +253,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     {
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(hWnd, &ps);
-
-        // 데이터 생성, 분류 및 저장
-        DataGenerator generator;
-        DataClassifier classifier;
-        DataWarehouse warehouse;
-
-        // 파이프라인 설정
-        classifier.addPipeline("Header_1", "pipeline_1");
-        classifier.addPipeline("Header_2", "pipeline_2");
-        classifier.addPipeline("Header_3", "pipeline_3");
-
-        // 예제: 10개의 데이터를 생성, 분류 및 저장
-        for (int i = 0; i < 10; ++i) {
-            Data data = generator.generateData();
-            std::string pipeline = classifier.classify(data);
-            warehouse.storeData(pipeline, data);
-        }
-
-        // 저장된 데이터 출력
-        warehouseData = warehouse.displayWarehouse();
-
-        // 줄바꿈 처리를 위한 코드를 추가
-        int y = 5;  // 시작 y 좌표
-        size_t pos = 0;
-        std::string line;
-        while ((pos = warehouseData.find('\n')) != std::string::npos) {
-            line = warehouseData.substr(0, pos);
-            TextOutA(hdc, 5, y, line.c_str(), (int)line.length());
-            warehouseData.erase(0, pos + 1);
-            y += 20;  // 다음 줄로 이동 (줄 간격)
-        }
-        // 마지막 라인 처리
-        if (!warehouseData.empty()) {
-            TextOutA(hdc, 5, y, warehouseData.c_str(), (int)warehouseData.length());
-        }
-
         EndPaint(hWnd, &ps);
     }
     break;
@@ -259,14 +268,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
     UNREFERENCED_PARAMETER(lParam);
-    switch (message)
-    {
+    switch (message) {
     case WM_INITDIALOG:
         return (INT_PTR)TRUE;
-
     case WM_COMMAND:
-        if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
-        {
+        if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL) {
             EndDialog(hDlg, LOWORD(wParam));
             return (INT_PTR)TRUE;
         }
