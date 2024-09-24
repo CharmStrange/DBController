@@ -1,12 +1,1 @@
-
-Pipeline: default_pipeline
-  Header: Header_761, Data: Data_9483, Dummy: Dummy_1859
-  Header: Header_72, Data: Data_7933
-  Header: Header_4, Data: Data_7735, Dummy: Dummy_3418
-  Header: Header_865, Data: Data_5403
-  Header: Header_487, Data: Data_3452, Dummy: Dummy_3197
-  Header: Header_705, Data: Data_1968, Dummy: Dummy_9456
-  Header: Header_923, Data: Data_391, Dummy: Dummy_126
-  Header: Header_165, Data: Data_1660
-  Header: Header_239, Data: Data_5502
-  Header: Header_853, Data: Data_3793, Dummy: Dummy_6388
+No data found.
